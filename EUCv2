@@ -13,7 +13,7 @@ class AssetDatabaseApp:
 
         # Setting up Notebook (Tabbed Layout)
         self.notebook = ttk.Notebook(root)
-        self.notebook.grid(row=0, column=0, sticky="nsew")
+        self.notebook.grid(row=1, column=0, sticky="nsew")
         self.notebook.grid_rowconfigure(0, weight=1)
         self.notebook.grid_columnconfigure(0, weight=1)
 
@@ -34,36 +34,35 @@ class AssetDatabaseApp:
         # Load or create workbook
         self.load_or_create_workbook()
 
-        # Load data into Treeviews
-        self.load_inventory_data()
-        self.load_logs_data()
+        # Buttons to Switch Between B4.2 and BR Data
+        button_frame = ctk.CTkFrame(root)
+        button_frame.grid(row=0, column=0, pady=(5, 0), padx=10, sticky="ew")
+        button_frame.grid_rowconfigure(0, weight=0)
+
+        b42_button = ctk.CTkButton(button_frame, text="B4.2", command=self.load_b42_data)
+        b42_button.grid(row=0, column=0, padx=5, pady=5)
+
+        br_button = ctk.CTkButton(button_frame, text="BR", command=self.load_br_data)
+        br_button.grid(row=0, column=1, padx=5, pady=5)
 
     def setup_inventory_tab(self):
         # Frame for Treeview and Filters
-        filter_frame = ctk.CTkFrame(self.inventory_tab)
-        filter_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
-
-        filter_label = ctk.CTkLabel(filter_frame, text="Filter by Item:")
-        filter_label.grid(row=0, column=0, padx=5, pady=5)
-
-        filter_entry = ctk.CTkEntry(filter_frame)
-        filter_entry.grid(row=0, column=1, padx=5, pady=5)
-
+        
         # Treeview for Inventory Display
         columns = ("Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number")
-        self.tree = ttk.Treeview(self.inventory_tab, columns=columns, show='headings')
+        self.inventory_tree = ttk.Treeview(self.inventory_tab, columns=columns, show='headings')
         for col in columns:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, anchor="w")
-        self.tree.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+            self.inventory_tree.heading(col, text=col)
+            self.inventory_tree.column(col, anchor="w")
+        self.inventory_tree.grid(row=1, column=0, padx=10, pady=10, sticky="nsew", rowspan=10)
 
         # Add Scrollbar
-        scrollbar = ttk.Scrollbar(self.inventory_tab, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar = ttk.Scrollbar(self.inventory_tab, orient="vertical", command=self.inventory_tree.yview)
+        self.inventory_tree.configure(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=1, column=1, sticky="ns")
 
         # Configure grid to expand
-        self.inventory_tab.grid_rowconfigure(1, weight=1)
+        self.inventory_tab.grid_rowconfigure(1, weight=10)
         self.inventory_tab.grid_columnconfigure(0, weight=1)
 
     def setup_logs_tab(self):
@@ -73,7 +72,7 @@ class AssetDatabaseApp:
         for col in columns:
             self.log_tree.heading(col, text=col)
             self.log_tree.column(col, anchor="w")
-        self.log_tree.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.log_tree.grid(row=0, column=0, padx=10, pady=10, sticky="nsew", rowspan=10)
 
         # Scrollbar for Logs Treeview
         scrollbar_log = ttk.Scrollbar(self.logs_tab, orient="vertical", command=self.log_tree.yview)
@@ -81,7 +80,7 @@ class AssetDatabaseApp:
         scrollbar_log.grid(row=0, column=1, sticky="ns")
 
         # Configure grid to expand
-        self.logs_tab.grid_rowconfigure(0, weight=1)
+        self.logs_tab.grid_rowconfigure(0, weight=10)
         self.logs_tab.grid_columnconfigure(0, weight=1)
 
     def load_or_create_workbook(self):
@@ -93,7 +92,7 @@ class AssetDatabaseApp:
         if self.workbook_path.exists():
             self.workbook = load_workbook(self.workbook_path)
             # Create missing sheets if any are not present
-            for sheet_name in ['B4.2_Items', 'B4.2_Timestamps', 'BR_Items', 'BR_Timestamps']:
+            for sheet_name in ['4.2_Items', '4.2_Timestamps', 'BR_Items', 'BR_Timestamps']:
                 if sheet_name not in self.workbook.sheetnames:
                     self.workbook.create_sheet(sheet_name)
                     if 'Items' in sheet_name:
@@ -103,37 +102,66 @@ class AssetDatabaseApp:
         else:
             self.workbook = Workbook()
             # Create sheets for both rooms with inventory and timestamps
-            self.workbook.create_sheet('B4.2_Items')
-            self.workbook.create_sheet('B4.2_Timestamps')
+            self.workbook.create_sheet('4.2_Items')
+            self.workbook.create_sheet('4.2_Timestamps')
             self.workbook.create_sheet('BR_Items')
             self.workbook.create_sheet('BR_Timestamps')
 
             # Add headers to the sheets
-            self.workbook['B4.2_Items'].append(["Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number"])
-            self.workbook['B4.2_Timestamps'].append(["Timestamp", "Item", "Action", "SAN Number", "Room"])
+            self.workbook['4.2_Items'].append(["Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number"])
+            self.workbook['4.2_Timestamps'].append(["Timestamp", "Item", "Action", "SAN Number", "Room"])
             self.workbook['BR_Items'].append(["Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number"])
             self.workbook['BR_Timestamps'].append(["Timestamp", "Item", "Action", "SAN Number", "Room"])
 
         # Save the workbook after making any necessary updates
-        self.workbook.save(self.workbook_path)
+        try:
+            self.workbook.save(self.workbook_path)
+        except PermissionError:
+            tk.messagebox.showerror("Permission Denied", f"Unable to save '{self.workbook_path}'. The file may be open in another program. Please close it and try again.")
+        except Exception as e:
+            tk.messagebox.showerror("Error", f"An unexpected error occurred while saving the workbook: {e}")
 
-    def load_inventory_data(self):
-        # Load data from the 'B4.2_Items' and 'BR_Items' sheets into the inventory Treeview
-        for sheet_name in ['B4.2_Items', 'BR_Items']:
-            if sheet_name in self.workbook.sheetnames:
-                sheet = self.workbook[sheet_name]
-                for row in sheet.iter_rows(min_row=2, values_only=True):
-                    if any(row):  # Check if the row has any non-empty values
-                        self.tree.insert('', 'end', values=row)
+    def load_b42_data(self):
+        # Clear existing data
+        for item in self.inventory_tree.get_children():
+            self.inventory_tree.delete(item)
+        for item in self.log_tree.get_children():
+            self.log_tree.delete(item)
 
-    def load_logs_data(self):
-        # Load data from the 'B4.2_Timestamps' and 'BR_Timestamps' sheets into the logs Treeview
-        for sheet_name in ['B4.2_Timestamps', 'BR_Timestamps']:
-            if sheet_name in self.workbook.sheetnames:
-                sheet = self.workbook[sheet_name]
-                for row in sheet.iter_rows(min_row=2, values_only=True):
-                    if any(row):  # Check if the row has any non-empty values
-                        self.log_tree.insert('', 'end', values=row)
+        # Load B4.2 data into Inventory Treeview
+        if '4.2_Items' in self.workbook.sheetnames:
+            sheet = self.workbook['4.2_Items']
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if any(row):  # Check if the row has any non-empty values
+                    self.inventory_tree.insert('', 'end', values=row)
+
+        # Load B4.2 data into Logs Treeview
+        if '4.2_Timestamps' in self.workbook.sheetnames:
+            sheet = self.workbook['4.2_Timestamps']
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if any(row):  # Check if the row has any non-empty values
+                    self.log_tree.insert('', 'end', values=row)
+
+    def load_br_data(self):
+        # Clear existing data
+        for item in self.inventory_tree.get_children():
+            self.inventory_tree.delete(item)
+        for item in self.log_tree.get_children():
+            self.log_tree.delete(item)
+
+        # Load BR data into Inventory Treeview
+        if 'BR_Items' in self.workbook.sheetnames:
+            sheet = self.workbook['BR_Items']
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if any(row):  # Check if the row has any non-empty values
+                    self.inventory_tree.insert('', 'end', values=row)
+
+        # Load BR data into Logs Treeview
+        if 'BR_Timestamps' in self.workbook.sheetnames:
+            sheet = self.workbook['BR_Timestamps']
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if any(row):  # Check if the row has any non-empty values
+                    self.log_tree.insert('', 'end', values=row)
 
 if __name__ == "__main__":
     root = ctk.CTk()
