@@ -1,0 +1,147 @@
+import tkinter as tk
+import customtkinter as ctk
+from tkinter import ttk
+from openpyxl import load_workbook, Workbook
+from tkinter import filedialog
+from pathlib import Path
+
+class AssetDatabaseApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("EUC Asset Inventory Management")
+        self.root.geometry("800x600")
+
+        # Setting up Notebook (Tabbed Layout)
+        self.notebook = ttk.Notebook(root)
+        self.notebook.grid(row=0, column=0, sticky="nsew")
+        self.notebook.grid_rowconfigure(0, weight=1)
+        self.notebook.grid_columnconfigure(0, weight=1)
+
+        # Creating Frames for Tabs
+        self.inventory_tab = ctk.CTkFrame(self.notebook)
+        self.logs_tab = ctk.CTkFrame(self.notebook)
+
+        # Adding Tabs to Notebook
+        self.notebook.add(self.inventory_tab, text="Inventory Overview")
+        self.notebook.add(self.logs_tab, text="Logs")
+
+        # Setup for Inventory Tab
+        self.setup_inventory_tab()
+
+        # Setup for Logs Tab
+        self.setup_logs_tab()
+
+        # Load or create workbook
+        self.load_or_create_workbook()
+
+        # Load data into Treeviews
+        self.load_inventory_data()
+        self.load_logs_data()
+
+    def setup_inventory_tab(self):
+        # Frame for Treeview and Filters
+        filter_frame = ctk.CTkFrame(self.inventory_tab)
+        filter_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+        filter_label = ctk.CTkLabel(filter_frame, text="Filter by Item:")
+        filter_label.grid(row=0, column=0, padx=5, pady=5)
+
+        filter_entry = ctk.CTkEntry(filter_frame)
+        filter_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        # Treeview for Inventory Display
+        columns = ("Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number")
+        self.tree = ttk.Treeview(self.inventory_tab, columns=columns, show='headings')
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, anchor="w")
+        self.tree.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+
+        # Add Scrollbar
+        scrollbar = ttk.Scrollbar(self.inventory_tab, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.grid(row=1, column=1, sticky="ns")
+
+        # Configure grid to expand
+        self.inventory_tab.grid_rowconfigure(1, weight=1)
+        self.inventory_tab.grid_columnconfigure(0, weight=1)
+
+    def setup_logs_tab(self):
+        # Treeview for Logs
+        columns = ("Timestamp", "Item", "Action", "SAN Number", "Room")
+        self.log_tree = ttk.Treeview(self.logs_tab, columns=columns, show="headings")
+        for col in columns:
+            self.log_tree.heading(col, text=col)
+            self.log_tree.column(col, anchor="w")
+        self.log_tree.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+
+        # Scrollbar for Logs Treeview
+        scrollbar_log = ttk.Scrollbar(self.logs_tab, orient="vertical", command=self.log_tree.yview)
+        self.log_tree.configure(yscrollcommand=scrollbar_log.set)
+        scrollbar_log.grid(row=0, column=1, sticky="ns")
+
+        # Configure grid to expand
+        self.logs_tab.grid_rowconfigure(0, weight=1)
+        self.logs_tab.grid_columnconfigure(0, weight=1)
+
+    def load_or_create_workbook(self):
+        # Default workbook path set to "sheets.xlsx" in the same folder as the script
+        script_directory = Path(__file__).parent
+        self.workbook_path = script_directory / 'sheets.xlsx'
+
+        # Load workbook if it exists, otherwise create a new one
+        if self.workbook_path.exists():
+            self.workbook = load_workbook(self.workbook_path)
+            # Create missing sheets if any are not present
+            for sheet_name in ['B4.2_Items', 'B4.2_Timestamps', 'BR_Items', 'BR_Timestamps']:
+                if sheet_name not in self.workbook.sheetnames:
+                    self.workbook.create_sheet(sheet_name)
+                    if 'Items' in sheet_name:
+                        self.workbook[sheet_name].append(["Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number"])
+                    else:
+                        self.workbook[sheet_name].append(["Timestamp", "Item", "Action", "SAN Number", "Room"])
+        else:
+            self.workbook = Workbook()
+            # Create sheets for both rooms with inventory and timestamps
+            self.workbook.create_sheet('B4.2_Items')
+            self.workbook.create_sheet('B4.2_Timestamps')
+            self.workbook.create_sheet('BR_Items')
+            self.workbook.create_sheet('BR_Timestamps')
+
+            # Add headers to the sheets
+            self.workbook['B4.2_Items'].append(["Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number"])
+            self.workbook['B4.2_Timestamps'].append(["Timestamp", "Item", "Action", "SAN Number", "Room"])
+            self.workbook['BR_Items'].append(["Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number"])
+            self.workbook['BR_Timestamps'].append(["Timestamp", "Item", "Action", "SAN Number", "Room"])
+
+        # Save the workbook after making any necessary updates
+        self.workbook.save(self.workbook_path)
+
+    def load_inventory_data(self):
+        # Load data from the 'B4.2_Items' and 'BR_Items' sheets into the inventory Treeview
+        for sheet_name in ['B4.2_Items', 'BR_Items']:
+            if sheet_name in self.workbook.sheetnames:
+                sheet = self.workbook[sheet_name]
+                for row in sheet.iter_rows(min_row=2, values_only=True):
+                    if any(row):  # Check if the row has any non-empty values
+                        self.tree.insert('', 'end', values=row)
+
+    def load_logs_data(self):
+        # Load data from the 'B4.2_Timestamps' and 'BR_Timestamps' sheets into the logs Treeview
+        for sheet_name in ['B4.2_Timestamps', 'BR_Timestamps']:
+            if sheet_name in self.workbook.sheetnames:
+                sheet = self.workbook[sheet_name]
+                for row in sheet.iter_rows(min_row=2, values_only=True):
+                    if any(row):  # Check if the row has any non-empty values
+                        self.log_tree.insert('', 'end', values=row)
+
+if __name__ == "__main__":
+    root = ctk.CTk()
+    root.geometry("800x600")
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
+    app = AssetDatabaseApp(root)
+    try:
+        root.mainloop()
+    except Exception as e:
+        print(f"An error occurred: {e}")
