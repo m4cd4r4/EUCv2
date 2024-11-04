@@ -11,77 +11,82 @@ class AssetDatabaseApp:
         self.root.title("EUC Asset Inventory Management")
         self.root.geometry("800x600")
 
-        # Setting up Notebook (Tabbed Layout)
-        self.notebook = ttk.Notebook(root)
-        self.notebook.grid(row=1, column=0, sticky="nsew")
-        self.notebook.grid_rowconfigure(0, weight=1)
-        self.notebook.grid_columnconfigure(0, weight=1)
-
-        # Creating Frames for Tabs
-        self.inventory_tab = ctk.CTkFrame(self.notebook)
-        self.logs_tab = ctk.CTkFrame(self.notebook)
-
-        # Adding Tabs to Notebook
-        self.notebook.add(self.inventory_tab, text="Inventory Overview")
-        self.notebook.add(self.logs_tab, text="Logs")
-
+        
+        # Creating Main Frames
+        self.inventory_frame = ctk.CTkFrame(root)
+        self.inventory_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
+        self.inventory_frame.grid_rowconfigure(0, weight=9)
+        self.inventory_frame.grid_rowconfigure(1, weight=1)
+        self.inventory_frame.grid_columnconfigure(0, weight=1)
         # Setup for Inventory Tab
-        self.setup_inventory_tab()
+        self.setup_inventory_view()
 
         # Setup for Logs Tab
-        self.setup_logs_tab()
+        self.setup_log_view()
 
         # Load or create workbook
         self.load_or_create_workbook()
 
         # Buttons to Switch Between B4.2 and BR Data
         button_frame = ctk.CTkFrame(root)
-        button_frame.grid(row=0, column=0, pady=(5, 0), padx=10, sticky="ew")
+        button_frame.grid(row=0, column=0, pady=0, padx=0, sticky="new")
         button_frame.grid_rowconfigure(0, weight=0)
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
+        button_frame.grid_columnconfigure(2, weight=1)
 
         b42_button = ctk.CTkButton(button_frame, text="B4.2", command=self.load_b42_data)
-        b42_button.grid(row=0, column=0, padx=5, pady=5)
+        b42_button.grid(row=0, column=0, padx=2, pady=2)
 
         br_button = ctk.CTkButton(button_frame, text="BR", command=self.load_br_data)
-        br_button.grid(row=0, column=1, padx=5, pady=5)
+        numeric_entry = ctk.CTkEntry(button_frame, placeholder_text="Enter Numeric Value", justify='center')
+        numeric_entry.grid(row=0, column=1, padx=2, pady=2)
 
-    def setup_inventory_tab(self):
+        br_button.grid(row=0, column=2, padx=2, pady=2)
+
+    def setup_inventory_view(self):
         # Frame for Treeview and Filters
         
         # Treeview for Inventory Display
         columns = ("Item", "LastCount", "NewCount", "SAN Number", "Location", "Model", "Serial Number")
-        self.inventory_tree = ttk.Treeview(self.inventory_tab, columns=columns, show='headings')
+        inventory_label = ctk.CTkLabel(self.inventory_frame, text="Inventory", font=('Arial', 14))
+        inventory_label.grid(row=0, column=0, sticky="w", padx=5, pady=5)
+
+        self.inventory_tree = ttk.Treeview(self.inventory_frame, columns=columns, show='headings')
         for col in columns:
             self.inventory_tree.heading(col, text=col)
             self.inventory_tree.column(col, anchor="w")
-        self.inventory_tree.grid(row=1, column=0, padx=10, pady=10, sticky="nsew", rowspan=10)
+        self.inventory_tree.grid(row=0, column=0, padx=2, pady=2, sticky="nsew")
 
         # Add Scrollbar
-        scrollbar = ttk.Scrollbar(self.inventory_tab, orient="vertical", command=self.inventory_tree.yview)
+        scrollbar = ttk.Scrollbar(self.inventory_frame, orient="vertical", command=self.inventory_tree.yview)
         self.inventory_tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.grid(row=1, column=1, sticky="ns")
+        scrollbar.grid(row=0, column=1, sticky="ns", padx=2, pady=2)
 
         # Configure grid to expand
-        self.inventory_tab.grid_rowconfigure(1, weight=10)
-        self.inventory_tab.grid_columnconfigure(0, weight=1)
+        
+        self.inventory_frame.grid_columnconfigure(0, weight=1)
 
-    def setup_logs_tab(self):
+    def setup_log_view(self):
         # Treeview for Logs
         columns = ("Timestamp", "Item", "Action", "SAN Number", "Room")
-        self.log_tree = ttk.Treeview(self.logs_tab, columns=columns, show="headings")
+        log_label = ctk.CTkLabel(self.inventory_frame, text="Logs", font=('Arial', 14))
+        log_label.grid(row=1, column=0, sticky="w", padx=5, pady=5)
+
+        self.log_tree = ttk.Treeview(self.inventory_frame, columns=columns, show='headings')
         for col in columns:
             self.log_tree.heading(col, text=col)
             self.log_tree.column(col, anchor="w")
-        self.log_tree.grid(row=0, column=0, padx=10, pady=10, sticky="nsew", rowspan=10)
+        self.log_tree.grid(row=1, column=0, padx=2, pady=2, sticky="nsew")
 
         # Scrollbar for Logs Treeview
-        scrollbar_log = ttk.Scrollbar(self.logs_tab, orient="vertical", command=self.log_tree.yview)
+        scrollbar_log = ttk.Scrollbar(self.inventory_frame, orient="vertical", command=self.log_tree.yview)
         self.log_tree.configure(yscrollcommand=scrollbar_log.set)
-        scrollbar_log.grid(row=0, column=1, sticky="ns")
+        scrollbar_log.grid(row=1, column=1, sticky="ns", padx=2, pady=2)
 
         # Configure grid to expand
-        self.logs_tab.grid_rowconfigure(0, weight=10)
-        self.logs_tab.grid_columnconfigure(0, weight=1)
+        
+        self.inventory_frame.grid_columnconfigure(0, weight=1)
 
     def load_or_create_workbook(self):
         # Default workbook path set to "sheets.xlsx" in the same folder as the script
@@ -166,7 +171,9 @@ class AssetDatabaseApp:
 if __name__ == "__main__":
     root = ctk.CTk()
     root.geometry("800x600")
-    root.grid_rowconfigure(0, weight=1)
+    root.grid_rowconfigure(0, weight=0)
+    root.grid_rowconfigure(1, weight=0)
+    root.grid_rowconfigure(2, weight=1)
     root.grid_columnconfigure(0, weight=1)
     app = AssetDatabaseApp(root)
     try:
